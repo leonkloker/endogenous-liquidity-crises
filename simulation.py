@@ -18,15 +18,15 @@ def lambdap(lambda_0, alpha, beta, past_events, t):
     if np.sum(t < past_events) > 0:
         raise ValueError("t must be greater than all past event times")
     
-    return lambda_0 + alpha * beta * np.sum(np.exp(-beta * (t - past_events)))
+    return lambda_0 + alpha * np.sum(np.exp(-beta * (t - past_events)))
     
 
 # define baseline intensities parameters
-lambda_0_p = 0.3
-lambda_0_n = 1
+lambda_0_p = 4
+lambda_0_n = 10
 
 # define exponential hawkes kernel parameters
-alpha = 1.001
+alpha = 0.8
 beta = 1
 
 # start time and end time
@@ -35,6 +35,9 @@ T = 100
 
 # initial spread
 S = [20]
+
+# initial price
+P = [0]
 
 # initialize list of event times
 tau = [0]
@@ -74,7 +77,7 @@ while t < T:
             times_p.append(t)
 
             # check if lambda(t) is new max due to this event
-            if lambda_t + alpha*beta > lambda_p_max:
+            if lambda_t + alpha > lambda_p_max:
                 lambda_p_max = lambda_t + alpha*beta
                 newmax = True
 
@@ -100,9 +103,14 @@ while len(times_p) > 0:
     tau.append(times_p.pop(0))
     S.append(S[-1] + 1)
 
+# compute price process
+for i in range(len(tau)-1):
+    P.append(P[-1] + 0.5 * ((np.random.randint(2) * 2) - 1))
+
 name = "spread_lambda_{}_{}_alpha_{}_beta_{}_T_{}.png".format(lambda_0_p, lambda_0_n, alpha, beta, T)
 plt.figure()
 plt.step(tau, S, label="Spread")
+plt.step(tau, P, label="Price")
 plt.xlabel("Time")
 plt.ylabel("Ticks")
 plt.legend()
