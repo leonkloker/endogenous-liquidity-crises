@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator
+
 
 # generate homogeneous poisson process 
 # with rate lambda0 up to time t
@@ -18,20 +20,20 @@ def lambdap(lambda_0, alpha, beta, past_events, t):
     if np.sum(t < past_events) > 0:
         raise ValueError("t must be greater than all past event times")
     
-    return lambda_0 + alpha * np.sum(np.exp(-beta * (t - past_events)))
+    return lambda_0 + alpha * beta * np.sum(np.exp(-beta * (t - past_events)))
     
 
 # define baseline intensities parameters
-lambda_0_p = 4
-lambda_0_n = 10
+lambda_0_p = 0.5
+lambda_0_n = 1
 
 # define exponential hawkes kernel parameters
-alpha = 0.8
+alpha = 1.1
 beta = 1
 
 # start time and end time
 t = 0
-T = 100
+T = 50
 
 # initial spread
 S = [20]
@@ -102,16 +104,43 @@ while len(times_n) > 0:
 while len(times_p) > 0:
     tau.append(times_p.pop(0))
     S.append(S[-1] + 1)
+tau.append(T)
+S.append(S[-1])
 
 # compute price process
 for i in range(len(tau)-1):
     P.append(P[-1] + 0.5 * ((np.random.randint(2) * 2) - 1))
 
 name = "spread_lambda_{}_{}_alpha_{}_beta_{}_T_{}.png".format(lambda_0_p, lambda_0_n, alpha, beta, T)
-plt.figure()
+ax = plt.figure().gca()
+ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.step(tau, S, label="Spread")
-plt.step(tau, P, label="Price")
+#plt.step(tau, P, label="Price")
+
+if alpha <= 1 and alpha > 1 - lambda_0_p/lambda_0_n:
+    plt.plot(np.linspace(0,T,100), S[0] + np.linspace(0,T,100) * (lambda_0_p/(1 - alpha) - 
+             lambda_0_n), label="Expected Spread")
+    
+elif alpha > 1:
+    plt.plot(np.linspace(0,T,100), S[0] + np.exp(-(1-alpha) * beta * np.linspace(0,T,100)) * 
+             lambda_0_p*alpha/((1 - alpha)**2 * beta), label="Expected Spread")
+    
 plt.xlabel("Time")
 plt.ylabel("Ticks")
+plt.grid()
 plt.legend()
 plt.savefig(name, dpi=400)
+
+S = np.array(S)
+if np.sum(S == 1) != 0:
+    warmup_idx = np.where(S == 1)[0][0]
+    time = 0
+    for i in range(warmup_idx, S.shape[0]-1):
+        if S[i] == 1:
+            time += tau[i+1] - tau[i]
+    p1 = time/(T-tau[warmup_idx])
+else:
+    p1 = 0
+
+print("Probability of S_t = 1: {}".format(p1))
+
